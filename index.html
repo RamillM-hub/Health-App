@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Дневник Здоровья ❤️</title>
+
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Забота ❤️" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Fonts & CDN Tailwind CSS & Canvas Confetti -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            nunito: ['Nunito', 'sans-serif'],
+          },
+          colors: {
+            peach: {
+              50: '#FFF9F5',
+              100: '#FFEEDD',
+              200: '#FFD8BE',
+              400: '#F4A261',
+              500: '#E76F51',
+            },
+            cream: '#FFFDF9',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #FFF9F5;
+      -webkit-tap-highlight-color: transparent;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Keyframes for Cat Animations */
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04) translateY(-2px); }
+    }
+    @keyframes purr {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-3deg); }
+      75% { transform: rotate(3deg); }
+    }
+    @keyframes floatHeart {
+      0% { transform: translateY(0) scale(0.8); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+    }
+    @keyframes tailWag {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(18deg); }
+    }
+    @keyframes floatZ {
+      0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+      40% { opacity: 0.9; }
+      100% { transform: translate(25px, -35px) scale(1.1); opacity: 0; }
+    }
+
+    .cat-breathe { animation: breathe 3.5s ease-in-out infinite; }
+    .cat-playful { animation: purr 1.2s ease-in-out infinite; }
+    .cat-tail { transform-origin: left bottom; animation: tailWag 1.8s ease-in-out infinite; }
+    .cat-zzz { animation: floatZ 2.5s ease-out infinite; }
+
+    /* Hide standard number spinners */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-stone-800 flex flex-col justify-between select-none">
+
+  <!-- Status / Offline Banner -->
+  <div id="offlineBanner" class="hidden bg-amber-100 text-amber-900 text-xs text-center py-1.5 px-3 font-semibold transition-all">
+    📡 Работаем офлайн. Данные сохранятся и отправятся при появлении сети!
+  </div>
+  <div id="syncBadge" class="hidden fixed top-3 right-3 z-50 bg-rose-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md animate-pulse">
+    Очередь: <span id="syncCount">0</span>
+  </div>
+
+  <main class="max-w-md mx-auto w-full px-4 pt-3 pb-8 flex-1 flex flex-col">
+
+    <!-- Header with Romantic Couple Photo Card -->
+    <div class="relative bg-white/80 backdrop-blur-md rounded-3xl p-3.5 shadow-sm border border-orange-100 mb-4 flex items-center gap-3.5">
+      <div class="relative w-16 h-16 rounded-2xl overflow-hidden shadow-inner shrink-0 border-2 border-rose-300">
+        <img src="our_photo.jpg" alt="Мы" class="w-full h-full object-cover object-top" />
+        <div class="absolute -bottom-1 -right-1 bg-rose-500 text-white rounded-full p-1 shadow">
+          <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h1 id="greetingTime" class="text-base font-extrabold text-stone-800 truncate">Доброе утро, любимая! ☀️</h1>
+        <p id="romanticQuote" class="text-xs text-rose-500 font-bold italic mt-0.5 leading-snug">Ты самое дорогое, что есть у меня ❤️</p>
+      </div>
+    </div>
+
+    <!-- Cat Room & Interactive Animation Stage -->
+    <div class="relative bg-gradient-to-b from-orange-100/70 to-peach-100/50 rounded-3xl p-4 shadow-sm border border-orange-100 mb-4 overflow-hidden min-h-[175px] flex flex-col items-center justify-center">
+      
+      <!-- Time of Day & Cat Mood Badge -->
+      <div class="absolute top-2.5 left-3.5 bg-white/90 backdrop-blur-sm text-[11px] font-bold text-stone-600 px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5">
+        <span id="moodIcon">☀️</span>
+        <span id="catStateText">Котик просыпается...</span>
+      </div>
+
+      <!-- SVG Living Cat Stage -->
+      <div id="catIllustration" class="w-48 h-32 flex items-center justify-center relative mt-3 transition-all duration-500">
+        <!-- SVG content will be dynamically updated by JS based on daytime & filled inputs -->
+      </div>
+
+      <!-- Encouraging Cat Speech Bubble -->
+      <div id="catSpeech" class="mt-1 text-center text-xs font-semibold text-stone-700 bg-white/80 backdrop-blur-sm px-3.5 py-1.5 rounded-full shadow-sm">
+        Мяу! Начнем замер? 🐾
+      </div>
+    </div>
+
+    <!-- Daily Inputs Form -->
+    <form id="healthForm" class="space-y-3">
+      
+      <!-- Blood Pressure Card -->
+      <div class="bg-white rounded-3xl p-4 shadow-sm border border-orange-100 transition-all focus-within:ring-2 focus-within:ring-rose-300">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-sm font-extrabold text-stone-700 flex items-center gap-1.5">
+            <span class="text-rose-500 text-base">🫀</span> Артериальное давление
+          </label>
+          <span class="text-[11px] text-stone-400 font-medium">мм рт. ст.</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="relative">
+            <input type="number" id="systolic" placeholder="120" inputmode="numeric" class="w-full text-center text-2xl font-extrabold text-stone-800 bg-orange-50/50 rounded-2xl py-2.5 border border-orange-200/80 focus:outline-none focus:border-rose-400 transition" />
+            <span class="block text-[10px] text-center text-stone-400 font-semibold mt-1">Верхнее (САД)</span>
+          </div>
+          <div class="relative">
+            <input type="number" id="diastolic" placeholder="80" inputmode="numeric" class="w-full text-center text-2xl font-extrabold text-stone-800 bg-orange-50/50 rounded-2xl py-2.5 border border-orange-200/80 focus:outline-none focus:border-rose-400 transition" />
+            <span class="block text-[10px] text-center text-stone-400 font-semibold mt-1">Нижнее (ДАД)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pulse & Weight 2-Column Grid -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Pulse -->
+        <div class="bg-white rounded-3xl p-4 shadow-sm border border-orange-100 transition-all focus-within:ring-2 focus-within:ring-rose-300">
+          <label class="text-xs font-extrabold text-stone-700 flex items-center gap-1 mb-2">
+            <span class="text-rose-500">💓</span> Пульс
+          </label>
+          <input type="number" id="pulse" placeholder="72" inputmode="numeric" class="w-full text-center text-2xl font-extrabold text-stone-800 bg-orange-50/50 rounded-2xl py-2.5 border border-orange-200/80 focus:outline-none focus:border-rose-400 transition" />
+          <span class="block text-[10px] text-center text-stone-400 font-semibold mt-1">уд / мин</span>
+        </div>
+
+        <!-- Weight -->
+        <div class="bg-white rounded-3xl p-4 shadow-sm border border-orange-100 transition-all focus-within:ring-2 focus-within:ring-rose-300">
+          <label class="text-xs font-extrabold text-stone-700 flex items-center gap-1 mb-2">
+            <span class="text-rose-500">⚖️</span> Вес
+          </label>
+          <input type="number" step="0.1" id="weight" placeholder="56.5" inputmode="decimal" class="w-full text-center text-2xl font-extrabold text-stone-800 bg-orange-50/50 rounded-2xl py-2.5 border border-orange-200/80 focus:outline-none focus:border-rose-400 transition" />
+          <span class="block text-[10px] text-center text-stone-400 font-semibold mt-1">кг</span>
+        </div>
+      </div>
+
+      <!-- Note / Mood -->
+      <div class="bg-white rounded-3xl p-3.5 shadow-sm border border-orange-100">
+        <input type="text" id="note" placeholder="Как ты себя чувствуешь, родная? (необязательно)" class="w-full text-xs font-medium text-stone-700 bg-transparent placeholder-stone-400 focus:outline-none px-1" />
+      </div>
+
+      <!-- Submit Button with Paw & Soft Animation -->
+      <div class="pt-2">
+        <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-rose-400 via-rose-500 to-peach-500 text-white font-extrabold text-base py-4 rounded-3xl shadow-lg shadow-rose-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+          <span>🐾</span>
+          <span id="btnText">Сохранить для любимого</span>
+        </button>
+      </div>
+
+    </form>
+  </main>
+
+  <!-- Love Praise Modal -->
+  <div id="loveModal" class="fixed inset-0 bg-stone-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl border border-rose-100 transform scale-90 transition-all duration-300" id="modalCard">
+      <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+        🥰
+      </div>
+      <h3 class="text-xl font-black text-stone-800 mb-1">Ты моя умница!</h3>
+      <p id="modalPraise" class="text-sm font-semibold text-rose-500 mb-4 leading-relaxed">
+        Спасибо, что заботишься о себе! Я тебя безумно люблю и крепко обнимаю ❤️
+      </p>
+      <div id="modalSyncNotice" class="text-[11px] text-stone-400 mb-4 font-medium hidden">
+        ✨ Запись сохранена локально и синхронизируется при связи.
+      </div>
+      <button onclick="closeModal()" class="w-full bg-rose-500 text-white font-bold py-3 rounded-2xl shadow-md shadow-rose-200 active:scale-95 transition">
+        Обнять в ответ 💖
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       КОНФИГУРАЦИЯ GOOGLE APPS SCRIPT
+       Вставь сюда URL развернутого скрипта Web App:
+       ========================================================== */
+    const GOOGLE_WEBAPP_URL = "YOUR_GOOGLE_SCRIPT_URL_HERE";
+
+    // Romantic Quotes Carousel
+    const quotes = [
+      "Ты самое дорогое, что есть у меня ❤️",
+      "Твоя улыбка делает мой мир ярче ✨",
+      "Береги себя, мое солнышко ☀️",
+      "Ты прекраснее всех на свете 🌸",
+      "Люблю тебя с каждым днем всё сильнее! 💖",
+      "Моё сердечко бьется только для тебя 💓"
+    ];
+
+    // State
+    let currentTimeOfDay = 'morning'; // morning, day, evening
+    let filledFieldsCount = 0;
+
+    // SVG Cat Graphics Generator (Smooth vector states)
+    function renderCat(timeOfDay, progressLevel) {
+      const container = document.getElementById('catIllustration');
+      const speech = document.getElementById('catSpeech');
+      const stateBadge = document.getElementById('catStateText');
+      const moodIcon = document.getElementById('moodIcon');
+
+      let svg = '';
+      
+      if (timeOfDay === 'morning') {
+        moodIcon.innerText = '☕';
+        if (progressLevel === 0) {
+          stateBadge.innerText = 'Котик сладко спит...';
+          speech.innerText = 'Хррр-мяу... Просыпаемся? 💤';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28 cat-breathe">
+              <!-- Soft Pillow -->
+              <ellipse cx="100" cy="100" rx="75" ry="22" fill="#FDE2D2" />
+              <!-- Curled Body -->
+              <ellipse cx="100" cy="85" rx="45" ry="32" fill="#F4A261" />
+              <ellipse cx="132" cy="72" rx="24" ry="22" fill="#F4A261" />
+              <!-- Ears -->
+              <polygon points="120,54 130,36 138,52" fill="#E76F51" />
+              <polygon points="135,52 146,38 149,54" fill="#E76F51" />
+              <!-- Closed Eyes -->
+              <path d="M 125 72 Q 132 77 137 72" stroke="#4A342B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <path d="M 139 72 Q 144 77 148 72" stroke="#4A342B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <!-- Tail curled -->
+              <path d="M 58 90 Q 50 65 70 65" stroke="#F4A261" stroke-width="9" fill="none" stroke-linecap="round" />
+              <!-- Sleep ZZZ floating -->
+              <text x="145" y="40" fill="#E76F51" font-size="16" font-weight="bold" class="cat-zzz">z</text>
+              <text x="155" y="26" fill="#E76F51" font-size="20" font-weight="bold" class="cat-zzz" style="animation-delay: 0.8s;">Z</text>
+            </svg>`;
+        } else if (progressLevel < 3) {
+          stateBadge.innerText = 'Котик потягивается!';
+          speech.innerText = 'Мяу! Открываю один глазик 🐾';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28">
+              <ellipse cx="100" cy="105" rx="75" ry="20" fill="#FDE2D2" />
+              <!-- Body stretching forward -->
+              <ellipse cx="85" cy="85" rx="40" ry="28" fill="#F4A261" />
+              <circle cx="125" cy="75" r="24" fill="#F4A261" />
+              <!-- Paws stretching -->
+              <ellipse cx="145" cy="98" rx="14" ry="7" fill="#F4A261" />
+              <polygon points="112,58 120,40 128,56" fill="#E76F51" />
+              <polygon points="126,56 136,42 140,58" fill="#E76F51" />
+              <!-- One eye open peek -->
+              <ellipse cx="122" cy="74" rx="3.5" ry="4.5" fill="#4A342B" />
+              <path d="M 133 74 Q 138 78 142 74" stroke="#4A342B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <circle cx="129" cy="82" r="3" fill="#E76F51" />
+              <!-- Tail up -->
+              <path d="M 50 82 Q 40 50 55 45" stroke="#F4A261" stroke-width="8" fill="none" stroke-linecap="round" class="cat-tail" />
+            </svg>`;
+        } else {
+          stateBadge.innerText = 'Котик бодр и готов к дню!';
+          speech.innerText = 'Ура! Я совсем проснулся, доброе утро! ☀️';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28 cat-breathe">
+              <!-- Happy Sitting Cat -->
+              <ellipse cx="100" cy="108" rx="60" ry="16" fill="#FDE2D2" opacity="0.6" />
+              <ellipse cx="100" cy="85" rx="32" ry="28" fill="#F4A261" />
+              <circle cx="100" cy="54" r="26" fill="#F4A261" />
+              <!-- Ears -->
+              <polygon points="82,40 88,18 100,34" fill="#E76F51" />
+              <polygon points="100,34 112,18 118,40" fill="#E76F51" />
+              <!-- Happy Smiling Eyes -->
+              <path d="M 88 52 Q 94 45 100 52" stroke="#4A342B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <path d="M 102 52 Q 108 45 114 52" stroke="#4A342B" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <polygon points="98,58 104,58 101,62" fill="#E76F51" />
+              <!-- Rosy Cheeks -->
+              <circle cx="88" cy="58" r="4.5" fill="#FFB4B4" />
+              <circle cx="114" cy="58" r="4.5" fill="#FFB4B4" />
+              <!-- Paws -->
+              <ellipse cx="90" cy="100" rx="9" ry="7" fill="#F4A261" />
+              <ellipse cx="110" cy="100" rx="9" ry="7" fill="#F4A261" />
+              <!-- Tail wagging -->
+              <path d="M 125 90 Q 150 80 145 60" stroke="#F4A261" stroke-width="7" fill="none" stroke-linecap="round" class="cat-tail" />
+            </svg>`;
+        }
+      } else if (timeOfDay === 'day') {
+        moodIcon.innerText = '☀️';
+        if (progressLevel === 0) {
+          stateBadge.innerText = 'Котик играет с клубком';
+          speech.innerText = 'Мяу! Поиграем вместе? 🧶';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28 cat-playful">
+              <ellipse cx="100" cy="105" rx="55" ry="14" fill="#FDE2D2" opacity="0.6" />
+              <circle cx="90" cy="80" r="28" fill="#F4A261" />
+              <circle cx="95" cy="50" r="22" fill="#F4A261" />
+              <polygon points="80,38 84,18 95,32" fill="#E76F51" />
+              <polygon points="97,32 108,18 112,38" fill="#E76F51" />
+              <ellipse cx="88" cy="48" rx="3.5" ry="4.5" fill="#4A342B" />
+              <ellipse cx="102" cy="48" rx="3.5" ry="4.5" fill="#4A342B" />
+              <!-- Pink Yarn Ball -->
+              <circle cx="140" cy="92" r="16" fill="#F43F5E" />
+              <path d="M 130 92 Q 140 80 150 92 Q 135 105 140 92" stroke="#FFF" stroke-width="1.8" fill="none" />
+              <path d="M 125 92 Q 105 95 110 84" stroke="#F43F5E" stroke-width="2" fill="none" />
+            </svg>`;
+        } else if (progressLevel < 3) {
+          stateBadge.innerText = 'Котик поймал клубочек!';
+          speech.innerText = 'Ловлю лапками твои циферки! 🐾';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28">
+              <ellipse cx="100" cy="105" rx="55" ry="14" fill="#FDE2D2" opacity="0.6" />
+              <!-- Rolling playful pose -->
+              <ellipse cx="95" cy="78" rx="32" ry="24" transform="rotate(-15 95 78)" fill="#F4A261" />
+              <circle cx="120" cy="62" r="20" fill="#F4A261" />
+              <!-- High Paws holding ball -->
+              <ellipse cx="138" cy="55" rx="8" ry="6" fill="#F4A261" />
+              <circle cx="145" cy="50" r="14" fill="#F43F5E" />
+              <!-- Tail excited -->
+              <path d="M 65 85 Q 50 60 70 50" stroke="#F4A261" stroke-width="7" fill="none" stroke-linecap="round" class="cat-tail" />
+            </svg>`;
+        } else {
+          stateBadge.innerText = 'Котик мурчит от восторга!';
+          speech.innerText = 'Ура! Ты заполнила всё идеально! Люблю! 💖';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28 cat-breathe">
+              <circle cx="100" cy="68" r="30" fill="#F4A261" />
+              <polygon points="78,50 82,28 96,44" fill="#E76F51" />
+              <polygon points="104,44 118,28 122,50" fill="#E76F51" />
+              <!-- Happy Eyes ^_^ -->
+              <path d="M 86 64 Q 92 56 98 64" stroke="#4A342B" stroke-width="3" fill="none" stroke-linecap="round" />
+              <path d="M 104 64 Q 110 56 116 64" stroke="#4A342B" stroke-width="3" fill="none" stroke-linecap="round" />
+              <circle cx="86" cy="72" r="5" fill="#FFB4B4" />
+              <circle cx="116" cy="72" r="5" fill="#FFB4B4" />
+              <!-- Huge floating heart held -->
+              <path d="M 100 105 Q 85 90 85 78 A 8 8 0 0 1 100 78 A 8 8 0 0 1 115 78 Q 115 90 100 105 Z" fill="#F43F5E" />
+            </svg>`;
+        }
+      } else { // Evening
+        moodIcon.innerText = '🌙';
+        if (progressLevel === 0) {
+          stateBadge.innerText = 'Котик готовится ко сну...';
+          speech.innerText = 'Зеваем... Скоро будем баиньки 🥱';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28">
+              <ellipse cx="100" cy="100" rx="75" ry="20" fill="#E2E8F0" />
+              <ellipse cx="95" cy="85" rx="36" ry="28" fill="#F4A261" />
+              <circle cx="125" cy="70" r="22" fill="#F4A261" />
+              <!-- Sleepy drooping eyes -->
+              <path d="M 116 70 L 124 73" stroke="#4A342B" stroke-width="2.5" stroke-linecap="round" />
+              <path d="M 128 73 L 136 70" stroke="#4A342B" stroke-width="2.5" stroke-linecap="round" />
+              <!-- Yawning open mouth -->
+              <ellipse cx="126" cy="79" rx="4" ry="6" fill="#E76F51" />
+              <!-- Moon and stars -->
+              <path d="M 35 30 A 12 12 0 0 0 45 45 A 15 15 0 1 1 35 30 Z" fill="#FCD34D" />
+            </svg>`;
+        } else if (progressLevel < 3) {
+          stateBadge.innerText = 'Котик зарывается в плед...';
+          speech.innerText = 'Засыпаю... Еще чуть-чуть данных и спать 🌙';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28">
+              <!-- Bed / Blanket -->
+              <path d="M 50 100 Q 100 70 150 100 Z" fill="#CBD5E1" />
+              <ellipse cx="100" cy="75" rx="26" ry="20" fill="#F4A261" />
+              <polygon points="86,62 92,48 98,60" fill="#E76F51" />
+              <polygon points="104,60 110,48 116,62" fill="#E76F51" />
+              <!-- Closed eyes -->
+              <path d="M 94 74 Q 99 78 104 74" stroke="#4A342B" stroke-width="2" fill="none" />
+              <text x="135" y="55" fill="#94A3B8" font-size="16" class="cat-zzz">z</text>
+            </svg>`;
+        } else {
+          stateBadge.innerText = 'Котик сладко спит под одеялком';
+          speech.innerText = 'Спокойной ночи, моя принцесса! Целую крепко 💫';
+          svg = `
+            <svg viewBox="0 0 200 130" class="w-44 h-28 cat-breathe">
+              <!-- Comfy blanket covering cat -->
+              <ellipse cx="100" cy="100" rx="75" ry="20" fill="#FDE2D2" />
+              <path d="M 50 110 Q 100 70 150 110 Z" fill="#FDA4AF" />
+              <!-- Peeking sleeping head -->
+              <ellipse cx="100" cy="75" rx="24" ry="18" fill="#F4A261" />
+              <path d="M 92 74 Q 97 78 102 74" stroke="#4A342B" stroke-width="2" fill="none" />
+              <path d="M 104 74 Q 109 78 114 74" stroke="#4A342B" stroke-width="2" fill="none" />
+              <!-- Nightcap / Heart -->
+              <path d="M 100 45 L 85 62 L 105 60 Z" fill="#F43F5E" />
+              <circle cx="100" cy="45" r="4" fill="#FFF" />
+              <text x="145" y="45" fill="#FDA4AF" font-size="20" font-weight="bold" class="cat-zzz">Zzz...</text>
+            </svg>`;
+        }
+      }
+
+      container.innerHTML = svg;
+    }
+
+    // Determine Day Phase & Greetings
+    function updateDayPhase() {
+      const hour = new Date().getHours();
+      const greetingEl = document.getElementById('greetingTime');
+      
+      if (hour >= 5 && hour < 12) {
+        currentTimeOfDay = 'morning';
+        greetingEl.innerText = "Доброе утро, любимая! ☕";
+      } else if (hour >= 12 && hour < 18) {
+        currentTimeOfDay = 'day';
+        greetingEl.innerText = "Добрый день, солнышко! ☀️";
+      } else {
+        currentTimeOfDay = 'evening';
+        greetingEl.innerText = "Уютного вечера, родная! 🌙";
+      }
+
+      // Random romantic quote
+      const quoteEl = document.getElementById('romanticQuote');
+      quoteEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+
+      renderCat(currentTimeOfDay, filledFieldsCount);
+    }
+
+    // Count filled inputs and reactively change cat animation
+    function recalculateInputsProgress() {
+      const sys = document.getElementById('systolic').value.trim();
+      const dia = document.getElementById('diastolic').value.trim();
+      const pulse = document.getElementById('pulse').value.trim();
+      const weight = document.getElementById('weight').value.trim();
+
+      let count = 0;
+      if (sys && dia) count += 1;
+      if (pulse) count += 1;
+      if (weight) count += 1;
+
+      filledFieldsCount = count;
+      renderCat(currentTimeOfDay, filledFieldsCount);
+    }
+
+    ['systolic', 'diastolic', 'pulse', 'weight'].forEach(id => {
+      document.getElementById(id).addEventListener('input', recalculateInputsProgress);
+    });
+
+    /* ==========================================================
+       OFFLINE-FIRST ENGINE (Queue in LocalStorage + Deduplication)
+       ========================================================== */
+    const QUEUE_KEY = 'health_sync_queue_v1';
+
+    function getQueue() {
+      try {
+        return JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveQueue(q) {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+      updateSyncUI();
+    }
+
+    function updateSyncUI() {
+      const q = getQueue();
+      const badge = document.getElementById('syncBadge');
+      const count = document.getElementById('syncCount');
+      if (q.length > 0) {
+        badge.classList.remove('hidden');
+        count.innerText = q.length;
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      const offlineBanner = document.getElementById('offlineBanner');
+      if (!navigator.onLine) {
+        offlineBanner.classList.remove('hidden');
+      } else {
+        offlineBanner.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('online', () => {
+      updateSyncUI();
+      processQueue();
+    });
+    window.addEventListener('offline', updateSyncUI);
+
+    async function processQueue() {
+      if (!navigator.onLine) return;
+      const q = getQueue();
+      if (q.length === 0) return;
+
+      const remaining = [];
+      for (const item of q) {
+        try {
+          const resp = await fetch(GOOGLE_WEBAPP_URL, {
+            method: 'POST',
+            mode: 'no-cors', // standard for Google Apps Script Web App
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+          // With no-cors Google returns opaque response, item successfully accepted
+        } catch (err) {
+          console.warn("Retrying later:", err);
+          remaining.push(item);
+        }
+      }
+      saveQueue(remaining);
+    }
+
+    // Form Submit Handler
+    document.getElementById('healthForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const systolic = document.getElementById('systolic').value.trim();
+      const diastolic = document.getElementById('diastolic').value.trim();
+      const pulse = document.getElementById('pulse').value.trim();
+      const weight = document.getElementById('weight').value.trim();
+      const note = document.getElementById('note').value.trim();
+
+      if (!systolic && !diastolic && !pulse && !weight) {
+        alert("Заполни хотя бы один показатель, солнышко ❤️");
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      submitBtn.disabled = true;
+      btnText.innerText = "Отправляю с любовью... 💌";
+
+      // Unique record with UUID for strict deduplication
+      const record = {
+        id: 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 7),
+        timestamp: new Date().toISOString(),
+        systolic: systolic,
+        diastolic: diastolic,
+        pulse: pulse,
+        weight: weight,
+        note: note
+      };
+
+      let sentDirectly = false;
+
+      if (navigator.onLine && GOOGLE_WEBAPP_URL !== "YOUR_GOOGLE_SCRIPT_URL_HERE") {
+        try {
+          await fetch(GOOGLE_WEBAPP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(record)
+          });
+          sentDirectly = true;
+        } catch (err) {
+          console.warn("Direct send failed, queuing...", err);
+        }
+      }
+
+      if (!sentDirectly) {
+        // Enqueue for background sync
+        const currentQueue = getQueue();
+        currentQueue.push(record);
+        saveQueue(currentQueue);
+      }
+
+      // Haptic Vibration feedback on iPhone (where supported)
+      if (navigator.vibrate) {
+        navigator.vibrate([15, 60, 20]);
+      }
+
+      // Launch Confetti Hearts
+      confetti({
+        particleCount: 50,
+        spread: 70,
+        origin: { y: 0.7 },
+        colors: ['#F43F5E', '#FDA4AF', '#F4A261', '#E76F51']
+      });
+
+      // Show Praise Modal
+      const modal = document.getElementById('loveModal');
+      const syncNotice = document.getElementById('modalSyncNotice');
+      if (!sentDirectly) syncNotice.classList.remove('hidden');
+      else syncNotice.classList.add('hidden');
+
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('modalCard').classList.remove('scale-90');
+
+      // Reset Form fields
+      document.getElementById('healthForm').reset();
+      filledFieldsCount = 0;
+      renderCat(currentTimeOfDay, 3); // Finish with super happy cat!
+
+      submitBtn.disabled = false;
+      btnText.innerText = "Сохранить для любимого";
+    });
+
+    function closeModal() {
+      const modal = document.getElementById('loveModal');
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('modalCard').classList.add('scale-90');
+      renderCat(currentTimeOfDay, 0);
+    }
+
+    // Init
+    updateDayPhase();
+    updateSyncUI();
+    processQueue();
+
+    // Register Service Worker for true Offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW fail', err));
+    }
+  </script>
+</body>
+</html>
